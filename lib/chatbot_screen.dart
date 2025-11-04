@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'package:chatbot_app/viewmodels/chatbot_view_model.dart';
 
 class ChatBotScreen extends StatefulWidget {
   const ChatBotScreen({super.key});
@@ -10,129 +12,110 @@ class ChatBotScreen extends StatefulWidget {
 }
 
 class _ChatBotScreenState extends State<ChatBotScreen> {
-  final dio = Dio(
-    BaseOptions(
-      baseUrl: 'https://generativelanguage.googleapis.com',
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 60),
-    ),
-  );
-  var result = 'Ask me anything!';
+  final TextEditingController _inputController = TextEditingController();
 
-  Future<void> askGemini() async {
-    try {
-      var input = _inputController.text;
-      _inputController.clear();
-      messages.insert(
-        0,
-        ChatMessage(user: user, createdAt: DateTime.now(), text: input),
-      );
-      setState(() {
-        messages;
-      });
-
-      final response = await dio.post(
-        '/v1beta/models/gemini-2.5-flash:generateContent',
-        queryParameters: {
-          'key':
-              'AIzaSyB4kx4B4ujUWZsD3MfZEZVZwOiMVnbXbpA', // move your key here
-        },
-        data: {
-          'contents': [
-            {
-              'parts': [
-                {'text': input},
-              ],
-            },
-          ],
-        },
-        options: Options(headers: {'Content-Type': 'application/json'}),
-      );
-
-      print(response.data);
-      if (response.statusCode == 200) {
-        final generations = response.data['candidates'] as List<dynamic>;
-        if (generations.isNotEmpty) {
-          result = generations[0]['content']['parts'][0]['text'];
-          messages.insert(
-            0,
-            ChatMessage(
-              user: gameniModel,
-              createdAt: DateTime.now(),
-              text: result,
-            ),
-          );
-          setState(() {
-            messages;
-          });
-        }
-      }
-    } on DioException catch (e) {
-      // Helpful diagnostics
-      print('Dio error: ${e.type} ${e.message}');
-      if (e.response != null) {
-        print('Status: ${e.response?.statusCode}');
-        print('Body: ${e.response?.data}');
-      }
-    } catch (e) {
-      print('Unexpected error: $e');
-    }
+  @override
+  void dispose() {
+    _inputController.dispose();
+    super.dispose();
   }
-
-  TextEditingController _inputController = TextEditingController();
-
-  ChatUser user = ChatUser(id: '1', firstName: 'Ammar', lastName: 'Shabbir');
-  ChatUser gameniModel = ChatUser(
-    id: '2',
-    firstName: 'Gameni',
-    lastName: 'Model',
-  );
-
-  List<ChatMessage> messages = [];
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Chat Bot')),
-        body: Column(
-          children: [
-            Expanded(
-              child: Center(
-                child: DashChat(
-                  readOnly: true,
-                  currentUser: user,
-                  onSend: (ChatMessage m) {},
-                  messages: messages,
-                ),
+    return ChangeNotifierProvider<ChatBotViewModel>(
+      create: (_) => ChatBotViewModel(),
+      child: Consumer<ChatBotViewModel>(
+        builder: (context, viewModel, _) {
+          return SafeArea(
+            child: Scaffold(
+              appBar: AppBar(
+                title: const Text('Chat Bot'),
+                actions: [
+                  IconButton(
+                    tooltip: 'Clear conversation',
+                    onPressed: viewModel.messages.isEmpty
+                        ? null
+                        : () {
+                            viewModel.clearChat();
+                          },
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
               ),
-            ),
-            Card(
-              color: Colors.white,
-              margin: const EdgeInsets.only(left: 15, right: 15, bottom: 15),
-              child: Row(
+              body: Column(
                 children: [
+                  if (viewModel.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              viewModel.errorMessage!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Expanded(
-                    child: TextField(
-                      controller: _inputController,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(horizontal: 15),
-                        hintText: 'Type your message',
-                        border: InputBorder.none,
+                    child: Center(
+                      child: DashChat(
+                        readOnly: true,
+                        currentUser: viewModel.user,
+                        onSend: (ChatMessage m) {},
+                        messages: viewModel.messages,
+                        typingUsers: viewModel.isThinking
+                            ? [viewModel.geminiModel]
+                            : const [],
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      askGemini();
-                    },
-                    icon: Icon(Icons.send),
+                  Card(
+                    color: Colors.white,
+                    margin: const EdgeInsets.only(
+                      left: 15,
+                      right: 15,
+                      bottom: 15,
+                      top: 15,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _inputController,
+                            decoration: const InputDecoration(
+                              contentPadding:
+                                  EdgeInsets.symmetric(horizontal: 15),
+                              hintText: 'Type your message',
+                              border: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            final text = _inputController.text;
+                            if (text.trim().isEmpty) {
+                              return;
+                            }
+                            viewModel.sendMessage(text);
+                            _inputController.clear();
+                          },
+                          icon: const Icon(Icons.send),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
