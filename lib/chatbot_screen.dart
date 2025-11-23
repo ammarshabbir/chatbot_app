@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:chatbot_app/settings_screen.dart';
 import 'package:chatbot_app/viewmodels/app_settings.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
@@ -9,7 +8,6 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-
 import 'package:chatbot_app/viewmodels/chatbot_view_model.dart';
 
 class ChatBotScreen extends StatefulWidget {
@@ -29,7 +27,8 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   String? _speechError;
   String? _currentTtsLanguage;
   Map<String, String>? _currentTtsVoice;
-  String? _currentSpeechLocaleId;
+  String _currentSpeechLocaleId = 'en_US';
+  bool _isListeningDialogOpen = false;
 
   @override
   void dispose() {
@@ -139,7 +138,9 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     try {
       started = await _speechToText.listen(
         onResult: _onSpeechResult,
-        localeId: _currentSpeechLocaleId,
+        localeId: _currentSpeechLocaleId.isNotEmpty
+            ? _currentSpeechLocaleId
+            : null,
       );
     } catch (error) {
       debugPrint('Speech listen failed: $error');
@@ -148,6 +149,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           _speechError =
               'Unable to start listening (${error.runtimeType}). Please try again.';
         });
+        _hideListeningDialog();
       }
       return;
     }
@@ -158,6 +160,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
       _isRecording = started;
       if (started) {
         _speechError = null;
+        _showListeningDialog();
       } else {
         _speechError ??= 'Unable to start listening. Please try again.';
       }
@@ -166,6 +169,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
 
   Future<void> _stopListening() async {
     await _speechToText.stop();
+    _hideListeningDialog();
     if (!mounted) {
       return;
     }
@@ -197,12 +201,15 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
       try {
         await _flutterTts.setLanguage(settings.ttsLanguage);
       } catch (error) {
-        debugPrint('Failed to set TTS language ${settings.ttsLanguage}: $error');
+        debugPrint(
+          'Failed to set TTS language ${settings.ttsLanguage}: $error',
+        );
       }
     }
 
     final selectedVoice = settings.ttsVoice;
-    final hasVoiceChanged = (selectedVoice == null && _currentTtsVoice != null) ||
+    final hasVoiceChanged =
+        (selectedVoice == null && _currentTtsVoice != null) ||
         (selectedVoice != null &&
             (_currentTtsVoice == null ||
                 !mapEquals<String, String>(_currentTtsVoice!, selectedVoice)));
@@ -212,12 +219,10 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
           selectedVoice.containsKey('name') &&
           selectedVoice.containsKey('locale')) {
         try {
-          await _flutterTts.setVoice(
-            {
-              'name': selectedVoice['name']!,
-              'locale': selectedVoice['locale']!,
-            },
-          );
+          await _flutterTts.setVoice({
+            'name': selectedVoice['name']!,
+            'locale': selectedVoice['locale']!,
+          });
         } catch (error) {
           debugPrint('Failed to set TTS voice: $error');
         }
@@ -296,10 +301,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: Colors.red,
-                          ),
+                          const Icon(Icons.error_outline, color: Colors.red),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -381,8 +383,9 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                           child: TextField(
                             controller: _inputController,
                             decoration: const InputDecoration(
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 15),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 15,
+                              ),
                               hintText: 'Type your message',
                               border: InputBorder.none,
                             ),
@@ -399,5 +402,55 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
         },
       ),
     );
+  }
+
+  void _showListeningDialog() {
+    if (_isListeningDialogOpen || !mounted) {
+      return;
+    }
+    _isListeningDialogOpen = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _isListeningDialogOpen = false;
+        return;
+      }
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+            content: SizedBox(
+              width: 220,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Listening...',
+                    style: TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  void _hideListeningDialog() {
+    if (!_isListeningDialogOpen || !mounted) {
+      return;
+    }
+    _isListeningDialogOpen = false;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
   }
 }
