@@ -33,6 +33,33 @@ class ChatBotViewModel extends ChangeNotifier {
   bool get isThinking => _isThinking;
   String? get errorMessage => _errorMessage;
 
+  Future<void> generateImageFromPrompt(String rawInput) async {
+    final prompt = rawInput.trim();
+    if (prompt.isEmpty) {
+      return;
+    }
+
+    _appendUserMessage(prompt);
+    _setError(null);
+    _setThinking(true);
+
+    try {
+      final imageData =
+          await _service.generateImage(conversation: _conversation);
+      if (imageData == null || imageData.trim().isEmpty) {
+        _setError('No image received from Gemini.');
+        return;
+      }
+      _appendModelImage(imageData.trim());
+    } catch (error, stackTrace) {
+      debugPrint('Failed to generate image: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      _setError('Unable to generate image right now. Please try again.');
+    } finally {
+      _setThinking(false);
+    }
+  }
+
   Future<void> sendMessage(String rawInput) async {
     final message = rawInput.trim();
     if (message.isEmpty) {
@@ -92,6 +119,31 @@ class ChatBotViewModel extends ChangeNotifier {
         createdAt: DateTime.now(),
         text: reply,
         isMarkdown: true,
+      ),
+    );
+    notifyListeners();
+  }
+
+  void _appendModelImage(String base64Image) {
+    _conversation.add(
+      const ChatEntry(
+        role: ChatRole.model,
+        text: 'Image generated.',
+      ),
+    );
+    _messages.insert(
+      0,
+      ChatMessage(
+        user: geminiModel,
+        createdAt: DateTime.now(),
+        text: 'Here is your image.',
+        medias: [
+          ChatMedia(
+            url: 'data:image/png;base64,$base64Image',
+            fileName: 'gemini-image.png',
+            type: MediaType.image,
+          ),
+        ],
       ),
     );
     notifyListeners();

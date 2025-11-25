@@ -241,20 +241,40 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     }
     if (hasText) {
       return IconButton(
-        onPressed: () {
-          final text = _inputController.text;
-          if (text.trim().isEmpty) {
-            return;
-          }
-          viewModel.sendMessage(text);
-          _inputController.clear();
-        },
+        onPressed: viewModel.isThinking
+            ? null
+            : () {
+                final text = _inputController.text;
+                if (text.trim().isEmpty) {
+                  return;
+                }
+                viewModel.sendMessage(text);
+                _inputController.clear();
+              },
         icon: const Icon(Icons.send),
       );
     }
     return IconButton(
-      onPressed: _speechAvailable ? _startListening : null,
+      onPressed: _speechAvailable && !viewModel.isThinking ? _startListening : null,
       icon: const Icon(Icons.mic),
+    );
+  }
+
+  Widget _buildImageButton(ChatBotViewModel viewModel) {
+    final hasText = _inputController.text.trim().isNotEmpty;
+    return IconButton(
+      tooltip: 'Generate image',
+      onPressed: hasText && !viewModel.isThinking
+          ? () {
+              final text = _inputController.text;
+              if (text.trim().isEmpty) {
+                return;
+              }
+              viewModel.generateImageFromPrompt(text);
+              _inputController.clear();
+            }
+          : null,
+      icon: const Icon(Icons.image_outlined),
     );
   }
 
@@ -391,6 +411,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                             ),
                           ),
                         ),
+                        _buildImageButton(viewModel),
                         _buildActionButton(viewModel),
                       ],
                     ),
