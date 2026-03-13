@@ -1,15 +1,8 @@
-import 'package:chatbot_app/chatbot_screen.dart';
-import 'package:chatbot_app/viewmodels/app_settings.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:chatbot_app/chatbot_screen.dart';
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppSettings(),
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -17,12 +10,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
       home: ChatBotScreen(),
     );
   }
