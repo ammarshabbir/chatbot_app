@@ -1,8 +1,7 @@
 import 'dart:convert';
+import 'package:chatbot_app/gemini_services.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:chatbot_app/api_key.dart';
 
 class ChatBotScreen extends StatefulWidget {
   const ChatBotScreen({super.key});
@@ -22,6 +21,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
   }
 
   List<Map<String, Object>> conversationHistory = [];
+  GeminiServices geminiServices = GeminiServices();
 
   Future<void> askGemini() async {
     final question = _questionController.text.trim();
@@ -49,22 +49,9 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     });
 
     _questionController.clear();
-    final url = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent',
-    );
-    final headers = {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': geminiApiKey,
-    };
-    final body = jsonEncode({
-      "contents": conversationHistory,
-      "generationConfig": {
-        "thinkingConfig": {"thinkingLevel": "low"},
-      },
-    });
 
     try {
-      final response = await http.post(url, headers: headers, body: body);
+      final response = await geminiServices.askGemini(conversationHistory);
       if (!mounted) return;
 
       if (response.statusCode == 200) {
