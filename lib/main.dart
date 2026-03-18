@@ -1,5 +1,6 @@
-import 'package:chatbot_app/chatbot_app.dart';
+import 'package:chatbot_app/diet_planner.dart';
 import 'package:flutter/material.dart';
+import 'package:chatbot_app/language_tutor.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ChatBotApp(),
+      home: DietPlanner(),
     );
   }
 }

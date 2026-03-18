@@ -21,6 +21,7 @@ dependencies:
   flutter_tts: ^4.2.5
   file_picker: ^10.3.2
   image_picker: ^1.2.1
+  lottie: ^3.3.1
   mime: ^2.0.0
   path_provider: ^2.1.5
 
@@ -40,6 +41,8 @@ flutter:
 
 
   uses-material-design: true
+  assets:
+    - assets/animations/language_tutor_loader.json
 
   # assets:
   #   - images/a_dot_burr.jpeg
